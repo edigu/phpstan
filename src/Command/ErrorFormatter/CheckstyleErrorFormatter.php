@@ -2,6 +2,7 @@
 
 namespace PHPStan\Command\ErrorFormatter;
 
+use PHPStan\Analyser\Error;
 use PHPStan\Command\AnalysisResult;
 use PHPStan\File\RelativePathHelper;
 use Symfony\Component\Console\Style\OutputStyle;
@@ -20,8 +21,8 @@ class CheckstyleErrorFormatter implements ErrorFormatter
 	/**
 	 * Formats the errors and outputs them to the console.
 	 *
-	 * @param \PHPStan\Command\AnalysisResult $analysisResult
-	 * @param \Symfony\Component\Console\Style\OutputStyle $style
+	 * @param AnalysisResult $analysisResult
+	 * @param OutputStyle $style
 	 * @return int Error code.
 	 */
 	public function formatErrors(
@@ -38,11 +39,14 @@ class CheckstyleErrorFormatter implements ErrorFormatter
 				$this->escape($relativeFilePath)
 			));
 
-			foreach ($errors as $error) {
+			/** @var Error $error */
+            foreach ($errors as $error) {
 				$style->writeln(sprintf(
-					'  <error line="%d" column="1" severity="error" message="%s" />',
+					'  <error line="%d" column="1" severity="%s" message="%s" source="%s" />',
 					$this->escape((string) $error->getLine()),
-					$this->escape((string) $error->getMessage())
+                    $error->getSeverity(),
+					$this->escape((string) $error->getMessage()),
+                    $error->getSource()
 				));
 			}
 			$style->writeln('</file>');
@@ -53,9 +57,13 @@ class CheckstyleErrorFormatter implements ErrorFormatter
 		if (count($notFileSpecificErrors) > 0) {
 			$style->writeln('<file>');
 
-			foreach ($notFileSpecificErrors as $error) {
-				$style->writeln(sprintf('  <error severity="error" message="%s" />', $this->escape($error)));
-			}
+            foreach ($notFileSpecificErrors as $error) {
+                $style->writeln(sprintf(
+                    '  <error severity="error" message="%s" source="PHPStan.NotFileSpecific.Other"/>',
+                    $this->escape($error)
+                    )
+                );
+            }
 
 			$style->writeln('</file>');
 		}
@@ -81,7 +89,7 @@ class CheckstyleErrorFormatter implements ErrorFormatter
 	 *
 	 * @param AnalysisResult $analysisResult
 	 * @return array<string, array> Array that have as key the relative path of file
-	 *                              and as value an array with occured errors.
+	 *                              and as value an array with occurred errors.
 	 */
 	private function groupByFile(AnalysisResult $analysisResult): array
 	{
